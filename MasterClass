@@ -1,0 +1,1681 @@
+ SELECT *
+FROM [AdventureWorks2019].[Sales].[SalesOrderHeader]
+
+--Adding Aggregrate query
+SELECT SUM(TotalDue) AS TotalSales, SalesPersonID
+FROM [AdventureWorks2019].[Sales].[SalesOrderHeader]
+GROUP BY SalesPersonID
+
+--Window Functions - helps retain row detail
+SELECT BusinessEntityID, TerritoryID, SalesYTD,
+SUM(SalesYTD) OVER () AS TotalYTDSales,
+MAX(SalesYTD) OVER () AS MaxYTDSales,
+------Calculate Percentage using windows
+SalesYTD/MAX(SalesYTD) OVER () AS [% of Best Performer]
+----[% of Best Performer] = [SalesYTD]/MAX(SalesYTD) OVER ()
+--[SalesYTD]/MAX(SalesYTD) OVER () AS [% of Best Performer]
+FROM [AdventureWorks2019].[Sales].[SalesPerson]
+
+-- PARTITION BY allows us to compute aggregrate totals for groups, maintasin row level detail
+SELECT 
+ProductID,
+OrderQty,
+SUM(LineTotal) AS LineTotal
+FROM [AdventureWorks2019].[Sales].[SalesOrderDetail]
+GROUP BY ProductID, OrderQty
+ORDER BY 1, 2
+
+SELECT
+ProductID,
+SalesOrderID,
+SalesOrderDetailID,
+OrderQty,
+UnitPrice,
+UnitPrice,
+LineTotal,
+SUM(LineTotal) OVER (PARTITION BY ProductID, OrderQty) AS ProductIDLineTotal
+FROM [AdventureWorks2019].[Sales].[SalesOrderDetail]
+ORDER BY ProductID, OrderQty
+---Exercise 1
+SELECT 
+a.name AS ProductName, ListPrice,
+b.name AS "Product Subcategory",
+c.name AS ProducyCategory
+FROM [AdventureWorks2019].[Production].[Product] a
+JOIN [AdventureWorks2019].[Production].[ProductSubcategory] b
+ON a.ProductSubcategoryID = b.ProductSubcategoryID
+JOIN [AdventureWorks2019].[Production].[ProductCategory] c
+ON b.ProductCategoryID = c.ProductCategoryID
+--Exercise 2
+SELECT 
+a.name AS ProductName, a.ListPrice,
+b.name AS "Product Subcategory",
+c.name AS ProducyCategory,
+AVG(a.ListPrice) OVER (PARTITION BY c.name) AS AvgPriceByCategory
+FROM [AdventureWorks2019].[Production].[Product] a
+JOIN [AdventureWorks2019].[Production].[ProductSubcategory] b
+ON a.ProductSubcategoryID = b.ProductSubcategoryID
+JOIN [AdventureWorks2019].[Production].[ProductCategory] c
+ON b.ProductCategoryID = c.ProductCategoryID
+
+--Exercise 3
+SELECT 
+a.name AS ProductName, a.ListPrice,
+b.name AS "Product Subcategory",
+c.name AS ProducyCategory,
+AVG(a.ListPrice) OVER (PARTITION BY c.name) AS AvgPriceByCategory,
+AVG(a.ListPrice) OVER (PARTITION BY c.name, b.name) AS AvgPriceByCategoryAndSubcategory
+FROM [AdventureWorks2019].[Production].[Product] a
+JOIN [AdventureWorks2019].[Production].[ProductSubcategory] b
+ON a.ProductSubcategoryID = b.ProductSubcategoryID
+JOIN [AdventureWorks2019].[Production].[ProductCategory] c
+ON b.ProductCategoryID = c.ProductCategoryID
+
+--Exercise 4
+SELECT 
+a.name AS ProductName, a.ListPrice,
+b.name AS "Product Subcategory",
+c.name AS ProducyCategory,
+AVG(a.ListPrice) OVER (PARTITION BY c.name) AS AvgPriceByCategory,
+AVG(a.ListPrice) OVER (PARTITION BY c.name, b.name) AS AvgPriceByCategoryAndSubcategory,
+a.ListPrice - AVG(a.ListPrice) OVER (PARTITION BY c.name) AS ProductVsCategoryDelta
+FROM [AdventureWorks2019].[Production].[Product] a
+JOIN [AdventureWorks2019].[Production].[ProductSubcategory] b
+ON a.ProductSubcategoryID = b.ProductSubcategoryID
+JOIN [AdventureWorks2019].[Production].[ProductCategory] c
+ON b.ProductCategoryID = c.ProductCategoryID
+
+--Using RANK
+SELECT
+SalesOrderID,
+SalesOrderDetailID,
+LineTotal,
+SUM(LineTotal) OVER (PARTITION BY SalesOrderID) AS ProductIDLineTotal,
+ROW_NUMBER () OVER (PARTITION BY SalesOrderID ORDER BY LineTotal DESC) AS Ranking
+FROM [AdventureWorks2019].[Sales].[SalesOrderDetail]
+
+--Exercise 2
+SELECT
+a.name AS "ProductName", 
+a.ListPrice,
+b.name AS "Product Subcategory",
+c.name AS ProducyCategory,
+"Price Rank" = ROW_NUMBER () OVER(ORDER BY a.ListPrice DESC)
+FROM [AdventureWorks2019].[Production].[Product] a
+JOIN [AdventureWorks2019].[Production].[ProductSubcategory] b
+ON a.ProductSubcategoryID = b.ProductSubcategoryID
+JOIN [AdventureWorks2019].[Production].[ProductCategory] c
+ON b.ProductCategoryID = c.ProductCategoryID
+
+--EXERCISE 3
+SELECT
+a.name AS "ProductName", 
+a.ListPrice,
+b.name AS "Product Subcategory",
+c.name AS ProducyCategory,
+"Price Rank" = ROW_NUMBER () OVER(ORDER BY a.ListPrice DESC),
+ROW_NUMBER () OVER (PARTITION BY c.name ORDER BY a.ListPrice DESC) AS "Category Rank Price"
+FROM [AdventureWorks2019].[Production].[Product] a
+JOIN [AdventureWorks2019].[Production].[ProductSubcategory] b
+ON a.ProductSubcategoryID = b.ProductSubcategoryID
+JOIN [AdventureWorks2019].[Production].[ProductCategory] c
+ON b.ProductCategoryID = c.ProductCategoryID
+
+--Exercise 4
+SELECT
+a.name AS "ProductName", 
+a.ListPrice,
+b.name AS "Product Subcategory",
+c.name AS ProducyCategory,
+"Price Rank" = ROW_NUMBER () OVER(ORDER BY a.ListPrice DESC),
+ROW_NUMBER () OVER (PARTITION BY c.name ORDER BY a.ListPrice DESC) AS "Category Rank Price",
+CASE 
+	WHEN ROW_NUMBER () OVER (PARTITION BY c.name ORDER BY a.ListPrice DESC) <= 5 THEN 'YES'
+	ELSE 'NO'
+	END AS "Top 5 Price in Category"
+FROM [AdventureWorks2019].[Production].[Product] a
+JOIN [AdventureWorks2019].[Production].[ProductSubcategory] b
+ON a.ProductSubcategoryID = b.ProductSubcategoryID
+JOIN [AdventureWorks2019].[Production].[ProductCategory] c
+ON b.ProductCategoryID = c.ProductCategoryID
+
+--RANK AND DENSE RANK-
+SELECT
+SalesOrderID,
+SalesOrderDetailID,
+LineTotal,
+SUM(LineTotal) OVER (PARTITION BY SalesOrderID) AS ProductIDLineTotal,
+ROW_NUMBER () OVER (PARTITION BY SalesOrderID ORDER BY LineTotal DESC) AS Ranking,
+RANK () OVER (PARTITION BY SalesOrderID ORDER BY LineTotal DESC) AS RankingwithRank,
+DENSE_RANK () OVER (PARTITION BY SalesOrderID ORDER BY LineTotal DESC) AS RankingwithDenseRANK
+FROM [AdventureWorks2019].[Sales].[SalesOrderDetail]
+
+--Exercise 1
+SELECT
+a.name AS "ProductName", 
+a.ListPrice,
+b.name AS "Product Subcategory",
+c.name AS ProducyCategory,
+"Price Rank" = ROW_NUMBER () OVER(ORDER BY a.ListPrice DESC),
+ROW_NUMBER () OVER (PARTITION BY c.name ORDER BY a.ListPrice DESC) AS "Category Rank Price",
+CASE 
+	WHEN ROW_NUMBER () OVER (PARTITION BY c.name ORDER BY a.ListPrice DESC) <= 5 THEN 'YES'
+	ELSE 'NO'
+	END AS "Top 5 Price in Category",
+RANK () OVER (PARTITION BY c.name ORDER BY a.Listprice DESC) AS 'Category Price Rank With Rank'
+FROM [AdventureWorks2019].[Production].[Product] a
+JOIN [AdventureWorks2019].[Production].[ProductSubcategory] b
+ON a.ProductSubcategoryID = b.ProductSubcategoryID
+JOIN [AdventureWorks2019].[Production].[ProductCategory] c
+ON b.ProductCategoryID = c.ProductCategoryID
+
+--EXERCISE 2
+SELECT
+a.name AS "ProductName", 
+a.ListPrice,
+b.name AS "Product Subcategory",
+c.name AS ProducyCategory,
+"Price Rank" = ROW_NUMBER () OVER(ORDER BY a.ListPrice DESC),
+ROW_NUMBER () OVER (PARTITION BY c.name ORDER BY a.ListPrice DESC) AS "Category Rank Price",
+RANK () OVER (PARTITION BY c.name ORDER BY a.Listprice DESC) AS 'Category Price Rank With Rank',
+DENSE_RANK () OVER (PARTITION BY c.name ORDER BY a.Listprice DESC) AS 'Category Price Rank With Dense Rank',
+CASE 
+	WHEN DENSE_RANK () OVER (PARTITION BY c.name ORDER BY a.Listprice DESC) <= 5 THEN 'YES'
+	ELSE 'NO'
+	END AS "Top 5 Price in Category"
+FROM [AdventureWorks2019].[Production].[Product] a
+JOIN [AdventureWorks2019].[Production].[ProductSubcategory] b
+ON a.ProductSubcategoryID = b.ProductSubcategoryID
+JOIN [AdventureWorks2019].[Production].[ProductCategory] c
+ON b.ProductCategoryID = c.ProductCategoryID
+
+--LEAD AND LAG
+SELECT
+SalesOrderID,
+OrderDate,
+CustomerID,
+TotalDue,
+LEAD(TotalDue,1) OVER (PARTITION BY CustomerID ORDER BY SalesOrderID) AS NextTotalDue,
+LAG(TotalDue,1) OVER (PARTITION BY CustomerID ORDER BY SalesOrderID) AS PrevTotalDue
+FROM [AdventureWorks2019].[Sales].[SalesOrderHeader]
+
+--Exercise 1
+SELECT
+PurchaseOrderID,
+OrderDate,
+TotalDue,
+Name AS VendorName
+FROM [AdventureWorks2019].[Purchasing].[PurchaseOrderHeader] a
+JOIN [AdventureWorks2019].[Purchasing].[Vendor] b
+ON a.VendorID = b.BusinessEntityID
+WHERE YEAR(OrderDate) >= 2013 AND TotalDue > 500
+
+--Exercise 2
+SELECT
+PurchaseOrderID,
+OrderDate,
+TotalDue,
+Name AS VendorName,
+LAG(TotalDue,1) OVER (PARTITION BY a.VendorID ORDER BY OrderDate) AS PrevOrderFromVendorAmt
+FROM [AdventureWorks2019].[Purchasing].[PurchaseOrderHeader] a
+JOIN [AdventureWorks2019].[Purchasing].[Vendor] b
+ON a.VendorID = b.BusinessEntityID
+WHERE YEAR(OrderDate) >= 2013 AND TotalDue > 500
+
+--Exercise 3
+SELECT
+PurchaseOrderID,
+OrderDate,
+TotalDue,
+Name AS VendorName,
+LAG(TotalDue,1) OVER (PARTITION BY a.VendorID ORDER BY OrderDate) AS PrevOrderFromVendorAmt,
+LEAD(b.Name,1) OVER (PARTITION BY a.EmployeeID ORDER BY OrderDate) AS NextOrderByEmployeeVendor
+FROM [AdventureWorks2019].[Purchasing].[PurchaseOrderHeader] a
+JOIN [AdventureWorks2019].[Purchasing].[Vendor] b
+ON a.VendorID = b.BusinessEntityID
+WHERE YEAR(OrderDate) >= 2013 AND TotalDue > 500
+
+--Exercise 4
+SELECT
+PurchaseOrderID,
+OrderDate,
+TotalDue,
+Name AS VendorName,
+LAG(TotalDue,1) OVER (PARTITION BY a.VendorID ORDER BY OrderDate) AS PrevOrderFromVendorAmt,
+LEAD(b.Name,1) OVER (PARTITION BY a.EmployeeID ORDER BY OrderDate) AS NextOrderByEmployeeVendor,
+LEAD(b.name,2) OVER (PARTITION BY a.EmployeeID ORDER BY OrderDate) AS Next2OrderByEmployeeVendor
+FROM [AdventureWorks2019].[Purchasing].[PurchaseOrderHeader] a
+JOIN [AdventureWorks2019].[Purchasing].[Vendor] b
+ON a.VendorID = b.BusinessEntityID
+WHERE YEAR(OrderDate) >= 2013 AND TotalDue > 500
+
+--Subqueries
+
+SELECT
+SalesOrderID,
+SalesOrderDetailID,
+LineTotal,
+ROW_NUMBER () OVER (PARTITION BY SalesOrderID ORDER BY LineTotal DESC)
+FROM [AdventureWorks2019].[Sales].[SalesOrderDetail]
+
+--WHERE ROW_NUMBER () OVER (PARTITION BY SalesOrderID ORDER BY LineTotal DESC) =1
+-- WHERE Clause does not work here and therefore need to use Subqueries
+SELECT *
+FROM
+(
+SELECT
+SalesOrderID,
+SalesOrderDetailID,
+LineTotal,
+ROW_NUMBER () OVER (PARTITION BY SalesOrderID ORDER BY LineTotal DESC) AS LineTotalRanking
+FROM [AdventureWorks2019].[Sales].[SalesOrderDetail]
+) a
+WHERE LineTotalRanking = 1
+
+--Exercise 1
+SELECT * 
+FROM
+(
+SELECT
+PurchaseOrderID,
+OrderDate,
+TotalDue,
+VendorID,
+TaxAmt,
+Freight,
+ROW_NUMBER () OVER (PARTITION BY VendorID ORDER BY TotalDue DESC) AS MostExpensiveRanking
+FROM [AdventureWorks2019].[Purchasing].[PurchaseOrderHeader] 
+) a
+WHERE MostExpensiveRanking <= 3
+
+--Exercise 2
+SELECT * 
+FROM
+(
+SELECT
+PurchaseOrderID,
+OrderDate,
+TotalDue,
+VendorID,
+TaxAmt,
+Freight,
+DENSE_RANK () OVER (PARTITION BY VendorID ORDER BY TotalDue DESC) AS MostExpensiveRanking
+FROM [AdventureWorks2019].[Purchasing].[PurchaseOrderHeader] 
+) a
+WHERE MostExpensiveRanking <= 3
+
+--Scaler Subqueries
+
+SELECT AVG(ListPrice) FROM [AdventureWorks2019].[Production].[Product]
+
+ SELECT	
+	ProductID,
+	Name,
+	StandardCost,
+	ListPrice,
+	AvgListPrice = (SELECT AVG(ListPrice) FROM [AdventureWorks2019].[Production].[Product]),
+	AvgListPriceDiff = ListPrice -  (SELECT AVG(ListPrice) FROM [AdventureWorks2019].[Production].[Product])
+ FROM [AdventureWorks2019].[Production].[Product] 
+
+ WHERE ListPrice > (SELECT AVG(ListPrice) FROM [AdventureWorks2019].[Production].[Product])
+ ORDER BY ListPrice DESC
+
+ --Exercise 1
+ SELECT
+	BusinessEntityID,
+	JobTitle,
+	VacationHours,
+	MaxVacationHours = (SELECT MAX(VacationHours) FROM [AdventureWorks2019].[HumanResources].[Employee])
+ FROM [AdventureWorks2019].[HumanResources].[Employee] 
+
+ --Exercise 2
+  SELECT
+	BusinessEntityID,
+	JobTitle,
+	VacationHours,
+	MaxVacationHours = (SELECT MAX(VacationHours) FROM [AdventureWorks2019].[HumanResources].[Employee]),
+	PercentVacationHours = VacationHours * 1.0 / (SELECT MAX(VacationHours) FROM [AdventureWorks2019].[HumanResources].[Employee])
+ FROM [AdventureWorks2019].[HumanResources].[Employee] 
+
+ --Exercise 3
+  SELECT
+	BusinessEntityID,
+	JobTitle,
+	VacationHours,
+	MaxVacationHours = (SELECT MAX(VacationHours) FROM [AdventureWorks2019].[HumanResources].[Employee]),
+	PercentVacationHours = (VacationHours * 1.0 / (SELECT MAX(VacationHours) FROM [AdventureWorks2019].[HumanResources].[Employee]))
+ FROM [AdventureWorks2019].[HumanResources].[Employee] 
+ WHERE (VacationHours * 1.0 / (SELECT MAX(VacationHours) FROM [AdventureWorks2019].[HumanResources].[Employee])) >= .8
+ 
+ --Correlated Subqueries- can be used in SELECT AND WHERE clause
+ SELECT
+	SalesOrderID,
+	OrderDate,
+	SubTotal,
+	TaxAmt,
+	Freight,
+	TotalDue,
+	MultiOrderCount = 
+	(
+		SELECT
+		COUNT(*)
+		FROM [AdventureWorks2019].[Sales].[SalesOrderDetail] b
+		WHERE b.SalesOrderID = a.SalesOrderID
+		AND b.OrderQty >1 
+	)
+	FROM [AdventureWorks2019].[Sales].[SalesOrderHeader] a 
+
+	SELECT
+	SalesOrderID,
+	OrderQty
+	FROM [AdventureWorks2019].[Sales].[SalesOrderDetail] 
+	WHERE SalesOrderID 
+
+--Exercise 1
+SELECT
+	PurchaseOrderID,
+	VendorID,
+	OrderDate,
+	TotalDue,
+	NonRejectedItems =
+	(
+	SELECT
+		COUNT(*)
+		FROM [AdventureWorks2019].[Purchasing].[PurchaseOrderDetail] b
+		WHERE a.PurchaseOrderID = b.PurchaseOrderID
+		AND b.RejectedQty = 0
+	)
+FROM [AdventureWorks2019].[Purchasing].[PurchaseOrderHeader] a
+
+
+--SELECT
+--COUNT(*)
+--FROM [AdventureWorks2019].[Purchasing].[PurchaseOrderDetail]
+--WHERE
+
+--Exercise 2
+SELECT
+	PurchaseOrderID,
+	VendorID,
+	OrderDate,
+	TotalDue,
+	NonRejectedItems =
+	(
+	SELECT
+		COUNT(*)
+		FROM [AdventureWorks2019].[Purchasing].[PurchaseOrderDetail] b
+		WHERE a.PurchaseOrderID = b.PurchaseOrderID
+		AND b.RejectedQty = 0
+	),
+	MostExpensiveItem =
+	(
+	SELECT 
+		MAX(b.UnitPrice)
+		FROM [AdventureWorks2019].[Purchasing].[PurchaseOrderDetail] b
+		WHERE a.PurchaseOrderID = b.PurchaseOrderID
+	)
+FROM [AdventureWorks2019].[Purchasing].[PurchaseOrderHeader] a
+
+--EXISTS and NOT EXISTS useful for one to many relationships (using EXISTS to pick only records we need)
+SELECT
+	SalesOrderID,
+	OrderDate,
+	TotalDue
+FROM [AdventureWorks2019].[Sales].[SalesOrderHeader] a
+ WHERE EXISTS (
+ SELECT 
+ 1
+FROM [AdventureWorks2019].[Sales].[SalesOrderDetail] b
+WHERE b.LineTotal > 10000
+AND a.SalesOrderID = b.SalesOrderDetailID
+ )
+
+ ORDER BY 1
+
+ --WHEN TO USE- Want to apply criterai to fields from secondary table
+
+ --Exercise 1
+ SELECT
+	PurchaseOrderID,
+	OrderDate,
+	SubTotal,
+	TaxAmt
+ FROM [AdventureWorks2019].[Purchasing].[PurchaseOrderHeader] a
+	WHERE EXISTS (
+	SELECT 
+	1
+	FROM [AdventureWorks2019].[Purchasing].[PurchaseOrderDetail] b
+	WHERE b.OrderQty > 500
+	AND a.PurchaseOrderID = b.PurchaseOrderID
+	)
+
+
+ --SELECT *
+ --FROM [AdventureWorks2019].[Purchasing].[PurchaseOrderDetail]
+
+ --Exercise 2
+  SELECT
+	a.*
+ FROM [AdventureWorks2019].[Purchasing].[PurchaseOrderHeader] a
+	WHERE EXISTS (
+	SELECT 
+	1
+	FROM [AdventureWorks2019].[Purchasing].[PurchaseOrderDetail] b
+	WHERE b.OrderQty > 500
+	AND b.UnitPrice > 50
+	AND a.PurchaseOrderID = b.PurchaseOrderID
+	) 
+
+--Exercise 3
+  SELECT
+	a.*
+ FROM [AdventureWorks2019].[Purchasing].[PurchaseOrderHeader] a
+	WHERE NOT EXISTS (
+	SELECT 
+	1
+	FROM [AdventureWorks2019].[Purchasing].[PurchaseOrderDetail] b
+	WHERE b.RejectedQty > 0
+	AND a.PurchaseOrderID = b.PurchaseOrderID
+	)
+--Using XML PATH with Stuff- helps creatre comma seperated list
+SELECT
+	',' + CAST(CAST(LineTotal AS MONEY) AS VARCHAR)
+FROM [AdventureWorks2019].[Sales].[SalesOrderDetail] a
+WHERE a.SalesOrderID = 43659
+FOR XML PATH('')
+--Use STUFF to trim
+SELECT
+STUFF(	
+		(
+		SELECT
+		',' + CAST(CAST(LineTotal AS MONEY) AS VARCHAR)
+		FROM [AdventureWorks2019].[Sales].[SalesOrderDetail] a
+		WHERE a.SalesOrderID = 43659
+		FOR XML PATH('')
+		),
+		1,1,'')
+--Plug into subquery
+ SELECT
+	SalesOrderID,
+	OrderDate,
+	SubTotal,
+	TaxAmt,
+	Freight,
+	TotalDue,
+	LineTotals = STUFF(	
+			(
+			SELECT
+			',' + CAST(CAST(LineTotal AS MONEY) AS VARCHAR)
+			FROM [AdventureWorks2019].[Sales].[SalesOrderDetail] b
+			WHERE a.SalesOrderID = b.SalesOrderID
+			FOR XML PATH('')
+			),
+			1,1,'')
+	FROM [AdventureWorks2019].[Sales].[SalesOrderHeader] a
+
+--Exercise 1
+SELECT
+	Name AS SubcategoryName,
+	Products = 
+		STUFF(	
+			(
+			SELECT
+			',' + b.Name
+			FROM [AdventureWorks2019].[Production].[Product] b
+			WHERE a.ProductCategoryID = b.ProductSubcategoryID
+			FOR XML PATH('')
+			),
+			1,1,'')
+FROM [AdventureWorks2019].[Production].[ProductSubcategory] a
+
+--Exercise 2
+SELECT
+	Name AS SubcategoryName,
+	Products = 
+		STUFF(	
+			(
+			SELECT
+			',' + b.Name
+			FROM [AdventureWorks2019].[Production].[Product] b
+			WHERE a.ProductCategoryID = b.ProductSubcategoryID
+			AND b.ListPrice > 50
+			FOR XML PATH('')
+			),
+			1,1,'')
+FROM [AdventureWorks2019].[Production].[ProductSubcategory] a
+
+--Pivot tables
+SELECT 
+*
+FROM
+(
+SELECT
+	d.name AS ProdcutCategoryName, --Being Transposed
+	a.LineTotal, --Being Aggregrated
+	a.OrderQty
+FROM AdventureWorks2019.Sales.SalesOrderDetail a
+	JOIN AdventureWorks2019.Production.Product b
+		ON a.ProductID = b.ProductID
+	JOIN AdventureWorks2019.Production.ProductSubcategory c
+		ON b.ProductSubcategoryID = c.ProductSubcategoryID
+	JOIN AdventureWorks2019.Production.ProductCategory d
+		ON c.ProductCategoryID = d.ProductCategoryID
+) A
+
+PIVOT(
+SUM(LineTotal)
+FOR ProdcutCategoryName IN(Bikes,Clothing,Accessories,Components)
+) B
+
+ORDER BY OrderQty
+
+--Exercise 1
+SELECT 
+*
+FROM 
+(
+SELECT
+	JobTitle,
+	VacationHours
+FROM AdventureWorks2019.HumanResources.Employee
+) A
+
+PIVOT(
+AVG(VacationHours)
+FOR JobTitle IN([Sales Representative], [Buyer], [Janitor])
+) B
+
+--Exercise 2
+SELECT 
+[Sales Representative], 
+[Buyer], 
+[Janitor],
+Gender AS [Employee Gender]
+FROM 
+(
+SELECT
+	JobTitle,
+	VacationHours,
+	Gender
+FROM AdventureWorks2019.HumanResources.Employee
+) A
+
+PIVOT(
+AVG(VacationHours)
+FOR JobTitle IN([Sales Representative], [Buyer], [Janitor])
+) B
+
+--USING CTEs
+
+WITH Sales AS
+(
+SELECT
+	OrderDate,
+	TotalDue,
+	OrderMonth = DATEFROMPARTS(YEAR(OrderDate),Month(OrderDate),1), 
+	OrderRank = ROW_NUMBER () OVER (PARTITION BY DATEFROMPARTS(YEAR(OrderDate),Month(OrderDate),1) ORDER BY TotalDue DESC)
+FROM AdventureWorks2019.Sales.SalesOrderHeader
+),
+Top10 AS 
+(
+SELECT
+OrderMonth,
+Top10Total = SUM(TotalDue)
+FROM Sales
+WHERE OrderRank <= 10
+GROUP BY OrderMonth
+)
+
+SELECT 
+A.OrderMonth,
+A.Top10Total,
+PrevTop10total = B.Top10Total
+FROM Top10 A
+	LEFT JOIN Top10 B
+		ON A.OrderMonth = DateADD(MONTH,1,B.OrderMonth)
+ORDER BY 1
+
+--Exercise 1
+WITH Sales AS
+(
+SELECT 
+       OrderDate
+	  ,OrderMonth = DATEFROMPARTS(YEAR(OrderDate),MONTH(OrderDate),1)
+      ,TotalDue
+	  ,OrderRank = ROW_NUMBER() OVER(PARTITION BY DATEFROMPARTS(YEAR(OrderDate),MONTH(OrderDate),1) ORDER BY TotalDue DESC)
+FROM AdventureWorks2019.Sales.SalesOrderHeader
+)
+
+,AvgSalesMinusTop10 AS
+(
+SELECT
+OrderMonth,
+TotalSales = SUM(TotalDue)
+FROM Sales
+WHERE OrderRank > 10
+GROUP BY OrderMonth
+)
+
+,Purchases AS
+(
+SELECT 
+       OrderDate
+	  ,OrderMonth = DATEFROMPARTS(YEAR(OrderDate),MONTH(OrderDate),1)
+      ,TotalDue
+	  ,OrderRank = ROW_NUMBER() OVER(PARTITION BY DATEFROMPARTS(YEAR(OrderDate),MONTH(OrderDate),1) ORDER BY TotalDue DESC)
+FROM AdventureWorks2019.Purchasing.PurchaseOrderHeader
+)
+
+,AvgPurchasesMinusTop10 AS
+(
+SELECT
+OrderMonth,
+TotalPurchases = SUM(TotalDue)
+FROM Purchases
+WHERE OrderRank > 10
+GROUP BY OrderMonth
+)
+
+
+SELECT
+A.OrderMonth,
+A.TotalSales,
+B.TotalPurchases
+
+FROM AvgSalesMinusTop10 A
+	JOIN AvgPurchasesMinusTop10 B
+		ON A.OrderMonth = B.OrderMonth
+
+ORDER BY 1
+
+--Simple CTE Example
+WITH VacationTime AS
+(
+SELECT
+	JobTitle,
+	VacationHours
+FROM AdventureWorks2019.HumanResources.Employee
+)
+SELECT JobTitle, COUNT(JobTitle)
+FROM VacationTime
+GROUP BY JobTitle
+
+--Recursive CTEs to use for series
+WITH NumberSeries AS
+(
+SELECT 1 AS MyNumber
+UNION ALL
+SELECT MyNumber  +1
+FROM NumberSeries
+WHERE MyNumber < 100
+)
+SELECT MyNumber
+FROM NumberSeries
+
+--Example to generate dates
+
+WITH DateSeries AS
+(
+SELECT CAST('01-01-2021' AS DATE) AS MyDate
+UNION ALL
+SELECT DATEADD(DAY,1,MyDate)
+FROM DateSeries
+WHERE MyDate < CAST('12-31-2021' AS DATE)
+)
+SELECT 
+	MyDate
+FROM DateSeries
+OPTION(MAXRECURSION 365)
+
+--Exercise 1
+WITH OddNumberSeries AS
+(
+SELECT 1 AS MyOddNumber
+UNION ALL
+SELECT MyOddNumber  + 2
+FROM OddNumberSeries
+WHERE MyOddNumber < 99
+)
+SELECT MyOddNumber
+FROM OddNumberSeries
+
+--Exercise 2
+
+WITH FirstDateSeries AS
+(
+SELECT CAST('01-01-2020' AS DATE) AS MyFirstDate
+UNION ALL
+SELECT DATEADD(MONTH,1,MyFirstDate)
+FROM FirstDateSeries
+WHERE MyFirstDate < CAST('12-1-2029' AS DATE)
+)
+SELECT 
+	MyFirstDate
+FROM FirstDateSeries
+OPTION(MAXRECURSION 120)
+
+--TEMP TABLES EXAMPLE
+
+SELECT 
+       OrderDate
+	  ,OrderMonth = DATEFROMPARTS(YEAR(OrderDate),MONTH(OrderDate),1)
+      ,TotalDue
+	  ,OrderRank = ROW_NUMBER() OVER(PARTITION BY DATEFROMPARTS(YEAR(OrderDate),MONTH(OrderDate),1) ORDER BY TotalDue DESC)
+INTO #Sales
+FROM AdventureWorks2019.Sales.SalesOrderHeader
+
+
+SELECT
+OrderMonth,
+TotalSales = SUM(TotalDue)
+INTO #AvgSalesMinusTop10
+FROM #Sales
+WHERE OrderRank > 10
+GROUP BY OrderMonth
+
+
+
+SELECT 
+       OrderDate
+	  ,OrderMonth = DATEFROMPARTS(YEAR(OrderDate),MONTH(OrderDate),1)
+      ,TotalDue
+	  ,OrderRank = ROW_NUMBER() OVER(PARTITION BY DATEFROMPARTS(YEAR(OrderDate),MONTH(OrderDate),1) ORDER BY TotalDue DESC)
+INTO #Purchases
+FROM AdventureWorks2019.Purchasing.PurchaseOrderHeader
+
+
+SELECT
+OrderMonth,
+TotalPurchases = SUM(TotalDue)
+INTO #AvgPurchasesMinusTop10
+FROM #Purchases
+WHERE OrderRank > 10
+GROUP BY OrderMonth
+
+
+
+SELECT
+A.OrderMonth,
+A.TotalSales,
+B.TotalPurchases
+
+FROM #AvgSalesMinusTop10 A
+	JOIN #AvgPurchasesMinusTop10 B
+		ON A.OrderMonth = B.OrderMonth
+
+ORDER BY 1
+
+DROP TABLE #Sales
+DROP TABLE #AvgSalesMinusTop10
+DROP TABLE #Purchases
+DROP TABLE #AvgPurchasesMinusTop10
+
+-- Create and Insert table to have better control in TEMP table
+
+CREATE TABLE #Sales
+(
+	OrderDate DATETIME,
+	OrderMonth DATE,
+	TotalDue MONEY,
+	OrderRank INT
+)
+INSERT INTO #Sales
+(
+	OrderDate ,
+	OrderMonth ,
+	TotalDue ,
+	OrderRank
+)
+SELECT
+	OrderDate,
+	OrderMonth = DATEFROMPARTS(YEAR(OrderDate),MONTH(OrderDate),1),
+	TotalDue,
+	OrderRank = ROW_NUMBER () OVER (PARTITION BY DATEFROMPARTS(YEAR(OrderDate),MONTH(OrderDate),1) ORDER BY TotalDue DESC)
+
+FROM AdventureWorks2019.Sales.SalesOrderHeader
+
+SELECT * FROM #Sales
+
+--
+
+CREATE TABLE #Top10Sales
+(
+	OrderMonth DATE,
+	Top10Total MONEY
+)
+
+INSERT INTO #Top10Sales
+
+SELECT
+	OrderMonth,
+	Top10Total = SUM(TotalDue)
+FROM #Sales
+WHERE OrderRank <= 10
+GROUP BY OrderMonth
+
+SELECT * FROM #Top10Sales
+
+--Exercise 1
+CREATE TABLE #Sales
+(
+       OrderDate DATE
+	  ,OrderMonth DATE
+      ,TotalDue MONEY
+	  ,OrderRank INT
+)
+
+INSERT INTO #Sales
+(
+       OrderDate
+	  ,OrderMonth
+      ,TotalDue
+	  ,OrderRank
+)
+SELECT 
+       OrderDate
+	  ,OrderMonth = DATEFROMPARTS(YEAR(OrderDate),MONTH(OrderDate),1)
+      ,TotalDue
+	  ,OrderRank = ROW_NUMBER() OVER(PARTITION BY DATEFROMPARTS(YEAR(OrderDate),MONTH(OrderDate),1) ORDER BY TotalDue DESC)
+
+FROM AdventureWorks2019.Sales.SalesOrderHeader
+
+
+
+CREATE TABLE #AvgSalesMinusTop10
+(
+OrderMonth DATE,
+TotalSales MONEY
+)
+
+INSERT INTO #AvgSalesMinusTop10
+(
+OrderMonth,
+TotalSales
+)
+SELECT
+OrderMonth,
+TotalSales = SUM(TotalDue)
+FROM #Sales
+WHERE OrderRank > 10
+GROUP BY OrderMonth
+
+
+CREATE TABLE #Purchases
+(
+       OrderDate DATE
+	  ,OrderMonth DATE
+      ,TotalDue MONEY
+	  ,OrderRank INT
+)
+
+INSERT INTO #Purchases
+(
+       OrderDate
+	  ,OrderMonth
+      ,TotalDue
+	  ,OrderRank
+)
+SELECT 
+       OrderDate
+	  ,OrderMonth = DATEFROMPARTS(YEAR(OrderDate),MONTH(OrderDate),1)
+      ,TotalDue
+	  ,OrderRank = ROW_NUMBER() OVER(PARTITION BY DATEFROMPARTS(YEAR(OrderDate),MONTH(OrderDate),1) ORDER BY TotalDue DESC)
+
+FROM AdventureWorks2019.Purchasing.PurchaseOrderHeader
+
+
+
+CREATE TABLE #AvgPurchaseMinusTop10
+(
+OrderMonth DATE,
+TotalPurchases MONEY
+)
+
+INSERT INTO #AvgPurchaseMinusTop10
+(
+OrderMonth,
+TotalPurchases
+)
+SELECT
+OrderMonth,
+TotalPurchases = SUM(TotalDue)
+FROM #Purchases
+WHERE OrderRank > 10
+GROUP BY OrderMonth
+
+
+
+SELECT
+A.OrderMonth,
+A.TotalSales,
+B.TotalPurchases
+
+FROM #AvgSalesMinusTop10 A
+	JOIN #AvgPurchaseMinusTop10 B
+		ON A.OrderMonth = B.OrderMonth
+
+ORDER BY 1
+
+DROP TABLE #Sales
+DROP TABLE #AvgSalesMinusTop10
+DROP TABLE #Purchases
+DROP TABLE #AvgPurchaseMinusTop10
+
+--Using UPDATE to Optimize
+
+--Re-write an optimized version of the below query using temp tables and UPDATE statements:
+
+SELECT 
+	   A.BusinessEntityID
+      ,A.Title
+      ,A.FirstName
+      ,A.MiddleName
+      ,A.LastName
+	  ,B.PhoneNumber
+	  ,PhoneNumberType = C.Name
+	  ,D.EmailAddress
+
+FROM AdventureWorks2019.Person.Person A
+	LEFT JOIN AdventureWorks2019.Person.PersonPhone B
+		ON A.BusinessEntityID = B.BusinessEntityID
+	LEFT JOIN AdventureWorks2019.Person.PhoneNumberType C
+		ON B.PhoneNumberTypeID = C.PhoneNumberTypeID
+	LEFT JOIN AdventureWorks2019.Person.EmailAddress D
+		ON A.BusinessEntityID = D.BusinessEntityID
+
+--Rewrite:
+CREATE TABLE #PersonContactInfo
+(
+	   BusinessEntityID INT
+      ,Title VARCHAR(8)
+      ,FirstName VARCHAR(50)
+      ,MiddleName VARCHAR(50)
+      ,LastName VARCHAR(50)
+	  ,PhoneNumber VARCHAR(25)
+	  ,PhoneNumberTypeID VARCHAR(25)
+	  ,PhoneNumberType VARCHAR(25)
+	  ,EmailAddress VARCHAR(50)
+)
+INSERT INTO #PersonContactInfo
+(
+	   BusinessEntityID
+      ,Title
+      ,FirstName
+      ,MiddleName
+      ,LastName
+)
+
+SELECT
+	   BusinessEntityID
+      ,Title
+      ,FirstName
+      ,MiddleName
+      ,LastName
+
+FROM AdventureWorks2019.Person.Person
+
+SELECT * FROM #PersonContactInfo
+UPDATE A
+SET
+	PhoneNumber = B.PhoneNumber,
+	PhoneNumberTypeID = B.PhoneNumberTypeID
+
+FROM #PersonContactInfo A
+	JOIN AdventureWorks2019.Person.PersonPhone B
+		ON A.BusinessEntityID = B.BusinessEntityID
+
+UPDATE A
+SET	PhoneNumberType = B.Name
+
+FROM #PersonContactInfo A
+	JOIN AdventureWorks2019.Person.PhoneNumberType B
+		ON A.PhoneNumberTypeID = B.PhoneNumberTypeID
+
+
+UPDATE A
+SET	EmailAddress = B.EmailAddress
+
+FROM #PersonContactInfo A
+	JOIN AdventureWorks2019.Person.EmailAddress B
+		ON A.BusinessEntityID = B.BusinessEntityID
+
+
+SELECT * FROM #PersonContactInfo
+
+-- Exists and Update
+
+CREATE TABLE #ProductsSold2012
+(
+	SalesOrderID INT,
+	OrderDate DATE,
+	LineTotal MONEY,
+	ProductID INT
+)
+INSERT INTO #ProductsSold2012
+(
+SalesOrderID,
+OrderDate
+)
+SELECT
+	SalesOrderID,
+	OrderDate
+FROM AdventureWorks2019.Sales.SalesOrderHeader
+SELECT * FROM #ProductsSold2012
+
+UPDATE A
+SET LineTotal = B.LineTotal,
+	ProductID = B.ProductID
+
+FROM #ProductsSold2012 A
+	JOIN AdventureWorks2019.Sales.SalesOrderDetail B
+	ON A.SalesOrderID = B.SalesOrderID
+SELECT * FROM #ProductsSold2012
+
+--Exercise 
+--Starter Query:
+
+
+SELECT
+       A.PurchaseOrderID,
+	   A.OrderDate,
+	   A.TotalDue
+
+FROM AdventureWorks2019.Purchasing.PurchaseOrderHeader A
+
+WHERE EXISTS (
+	SELECT
+	1
+	FROM AdventureWorks2019.Purchasing.PurchaseOrderDetail B
+	WHERE A.PurchaseOrderID = B.PurchaseOrderID
+		AND B.RejectedQty > 5
+)
+
+ORDER BY 1
+
+
+
+--Re-write:
+
+CREATE TABLE #Purchases
+(
+PurchaseOrderID INT,
+OrderDate DATE,
+TotalDue MONEY,
+RejectedQty INT
+)
+
+
+
+INSERT INTO #Purchases
+(
+PurchaseOrderID,
+OrderDate,
+TotalDue
+)
+
+SELECT
+PurchaseOrderID,
+OrderDate,
+TotalDue
+
+FROM AdventureWorks2019.Purchasing.PurchaseOrderHeader
+
+
+UPDATE A
+	SET RejectedQty = B.RejectedQty
+
+FROM #Purchases A
+	JOIN AdventureWorks2019.Purchasing.PurchaseOrderDetail B
+		ON A.PurchaseOrderID = B.PurchaseOrderID
+WHERE B.RejectedQty > 5
+
+
+
+SELECT * FROM #Purchases WHERE RejectedQty IS NOT NULL
+
+
+DROP TABLE #Purchases
+
+--Indexes for TEMP TABLES- Clustered vs non-clustered
+CREATE TABLE #PersonContactInfo
+(
+	   BusinessEntityID INT
+      ,Title VARCHAR(8)
+      ,FirstName VARCHAR(50)
+      ,MiddleName VARCHAR(50)
+      ,LastName VARCHAR(50)
+	  ,PhoneNumber VARCHAR(25)
+	  ,PhoneNumberTypeID VARCHAR(25)
+	  ,PhoneNumberType VARCHAR(25)
+	  ,EmailAddress VARCHAR(50)
+)
+
+INSERT INTO #PersonContactInfo
+(
+	   BusinessEntityID
+      ,Title
+      ,FirstName
+      ,MiddleName
+      ,LastName
+)
+
+SELECT
+	   BusinessEntityID
+      ,Title
+      ,FirstName
+      ,MiddleName
+      ,LastName
+
+FROM AdventureWorks2019.Person.Person
+
+
+CREATE CLUSTERED INDEX pci_idx1 ON #PersonContactInfo(BusinessEntityID)
+
+
+UPDATE A
+SET
+	PhoneNumber = B.PhoneNumber,
+	PhoneNumberTypeID = B.PhoneNumberTypeID
+
+FROM #PersonContactInfo A
+	JOIN AdventureWorks2019.Person.PersonPhone B
+		ON A.BusinessEntityID = B.BusinessEntityID
+
+
+CREATE NONCLUSTERED INDEX pci_idx2 ON #PersonContactInfo(PhoneNumberTypeID)
+
+
+UPDATE A
+SET	PhoneNumberType = B.Name
+
+FROM #PersonContactInfo A
+	JOIN AdventureWorks2019.Person.PhoneNumberType B
+		ON A.PhoneNumberTypeID = B.PhoneNumberTypeID
+
+
+UPDATE A
+SET	EmailAddress = B.EmailAddress
+
+FROM #PersonContactInfo A
+	JOIN AdventureWorks2019.Person.EmailAddress B
+		ON A.BusinessEntityID = B.BusinessEntityID
+
+
+SELECT * FROM #PersonContactInfo
+
+--Lookup tables
+CREATE TABLE AdventureWorks2019.dbo.Calender
+(
+DateValue DATE,
+DayOfWeekNumber INT,
+DayOfWeekName VARCHAR(255),
+DayOfMonthNumber INT,
+MonthNumber INT,
+YearNumber INT,
+WeekendFlag TINYINT,
+HolidayFlag TINYINT
+)
+
+
+--USE CTE recursion to generate data
+WITH Dates AS
+(
+SELECT
+CAST('01-01-2011' AS DATE) AS MyDate
+
+UNION ALL
+
+SELECT
+DATEADD(Day,1,MyDate)
+FROM Dates
+WHERE MyDate < CAST('12-31-2030' AS DATE)
+)
+INSERT INTO AdventureWorks2019.dbo.Calender (DateValue)
+SELECT 
+	MyDate
+FROM Dates
+OPTION (MAXRECURSION 10000)
+
+SELECT * FROM AdventureWorks2019.dbo.Calender
+
+UPDATE AdventureWorks2019.dbo.Calender
+SET
+DayOfWeekNumber = DATEPART(WEEKDAY,DateValue),
+DayOfWeekName = FORMAT(DateValue,'dddd'),
+DayOfMonthNumber = DAY(DATEVALUE),
+MonthNumber = MONTH(DateValue),
+YearNumber = YEAR(DateValue)
+
+UPDATE AdventureWorks2019.dbo.Calender
+SET
+WeekendFlag = 
+	CASE	
+		WHEN DayOfWeekName IN ('Saturday','Sunday') THEN 1
+		ELSE 0
+	END
+
+SELECT 
+A.* 
+FROM AdventureWorks2019.Sales.SalesOrderHeader A
+	JOIN AdventureWorks2019.dbo.Calender B
+		ON A.OrderDate = B.DateValue
+WHERE B.WeekendFlag = 1
+
+--Exercise 1
+SELECT * FROM AdventureWorks2019.dbo.Calender
+
+UPDATE AdventureWorks2019.dbo.Calender
+SET
+HolidayFlag = 
+	CASE	
+		WHEN DayOfMonthNumber = 1 AND MonthNumber = 1 THEN 1
+		ELSE NULL
+	END
+--Exercise 2
+SELECT
+A.*
+FROM AdventureWorks2019.Purchasing.PurchaseOrderHeader A
+	JOIN AdventureWorks2019.dbo.Calender B
+		ON A.OrderDate = B.DateValue
+WHERE HolidayFlag = 1
+-- Exercise 3
+SELECT
+A.*
+FROM AdventureWorks2019.Purchasing.PurchaseOrderHeader A
+	JOIN AdventureWorks2019.dbo.Calender B
+		ON A.OrderDate = B.DateValue
+WHERE HolidayFlag = 1 AND WeekendFlag = 1
+
+--Using Variables
+DECLARE @MyVar INT
+SET @MyVar = 11
+SELECT @MyVar
+--OR
+DECLARE @MyVar INT = 11
+SELECT @MyVar
+
+DECLARE @MinPrice MONEY = 1000
+
+SELECT
+*
+FROM AdventureWorks2019.Production.Product
+WHERE ListPrice >=@MinPrice
+
+--Exercise 1
+--Starter code:
+
+SELECT
+	   BusinessEntityID
+      ,JobTitle
+      ,VacationHours
+	  ,MaxVacationHours = (SELECT MAX(VacationHours) FROM AdventureWorks2019.HumanResources.Employee)
+	  ,PercentOfMaxVacationHours = (VacationHours * 1.0) / (SELECT MAX(VacationHours) FROM AdventureWorks2019.HumanResources.Employee)
+
+FROM AdventureWorks2019.HumanResources.Employee
+
+WHERE (VacationHours * 1.0) / (SELECT MAX(VacationHours) FROM AdventureWorks2019.HumanResources.Employee) >= 0.8
+-- Using Variables
+DECLARE @MaxVacationHours FLOAT = (SELECT MAX(VacationHours) FROM AdventureWorks2019.HumanResources.Employee)
+
+
+SELECT
+	   BusinessEntityID
+      ,JobTitle
+      ,VacationHours
+	  ,MaxVacationHours = @MaxVacationHours
+	  ,PercentOfMaxVacationHours = (VacationHours * 1.0) / @MaxVacationHours
+
+FROM AdventureWorks2019.HumanResources.Employee
+
+WHERE (VacationHours * 1.0) / @MaxVacationHours >= 0.8
+
+-- More Variables
+DECLARE @Today DATE = CAST(GETDATE() AS DATE)
+SELECT @Today
+
+DECLARE @BOM DATE = DATEFROMPARTS(YEAR(@Today),MONTH(@Today),1)
+SELECT @BOM
+
+DECLARE @PreBOM DATE = DATEADD(MONTH,-1,@BOM)
+SELECT @PreBOM
+
+DECLARE @PreEOM DATE = DATEADD(DAY,-1,@BOM)
+SELECT @PreEOM
+
+SELECT * FROM	AdventureWorks2019.dbo.Calender
+WHERE DateValue BETWEEN @PreBOM AND @PreEOM
+
+--Exercise 2
+DECLARE @Today DATE = CAST(GETDATE() AS DATE)
+
+SELECT @Today
+
+DECLARE @Current14 DATE = DATEFROMPARTS(YEAR(@Today),MONTH(@Today),14)
+
+DECLARE @PayPeriodEnd DATE = 
+	CASE
+		WHEN DAY(@Today) < 15 THEN DATEADD(MONTH,-1,@Current14)
+		ELSE @Current14
+	END
+
+DECLARE @PayPeriodStart DATE = DATEADD(DAY,1,DATEADD(MONTH,-1,@PayPeriodEnd))
+
+
+SELECT @PayPeriodStart
+SELECT @PayPeriodEnd
+
+--User Defined Fuctions (Make sure in proper database)
+CREATE FUNCTION dbo.ufnCurrentDate() 
+RETURNS DATE
+AS
+BEGIN
+	RETURN CAST(GETDATE() AS DATE)
+END
+--
+SELECT
+	SalesOrderID,
+	OrderDate,
+	DueDate,
+	ShipDate,
+	Today = dbo.ufnCurrentDate()
+FROM AdventureWorks2019.Sales.SalesOrderHeader
+WHERE YEAR(OrderDate)  = 2011
+--
+ USE AdventureWorks2019
+
+ GO
+
+CREATE FUNCTION dbo.ufnElapsedBusinessDays(@StartDate DATE, @EndDate DATE)
+RETURNS INT
+AS
+BEGIN
+
+RETURN (
+	SELECT
+	COUNT(*)
+	FROM AdventureWorks2019.dbo.Calender
+	WHERE DateValue BETWEEN @StartDate AND @EndDate
+		AND WeekendFlag = 0
+		AND HolidayFlag = 0
+		)
+END
+
+--USE the function
+SELECT
+	SalesOrderID,
+	OrderDate,
+	DueDate,
+	ShipDate,
+	ElaspedBusinessDays = dbo.ufnElapsedBusinessDays(DueDate,ShipDate)
+FROM AdventureWorks2019.Sales.SalesOrderHeader
+WHERE YEAR(OrderDate)  = 2011
+-- Exercise 
+CREATE FUNCTION dbo.ufnPercentOF(@Numerator INT, @Denominator INT)
+RETURNS VARCHAR(8)
+AS
+BEGIN
+	DECLARE @Decimal FLOAT = (@Numerator * 1.0 / @Denominator)
+	RETURN FORMAT (@Decimal, 'P')
+END
+
+-- Exercise 2
+DECLARE @MaxVacationTime INT = (SELECT MAX(VacationHours)FROM AdventureWorks2019.HumanResources.Employee)
+
+SELECT
+	BusinessEntityID,
+	JobTitle,
+	VacationHours,
+	PercentofMaxVacation = dbo.ufnPercentOF(VacationHours,@MaxVacationTime)
+FROM AdventureWorks2019.HumanResources.Employee
+
+
+--Stored Procedures
+CREATE PROCEDURE dbo.OrdersReport
+AS
+
+BEGIN
+	SELECT *
+	FROM (
+		SELECT	
+			ProductName = B.Name,
+			LineTotalSum = SUM(A.LineTotal),
+			LineTotalSumRank = DENSE_RANK() OVER (ORDER BY SUM(A.LineTotal) DESC)
+		FROM AdventureWorks2019.Sales.SalesOrderDetail A
+			JOIN AdventureWorks2019.Production.Product B
+				ON A.ProductID = B.ProductID
+		GROUP BY 
+			B.Name
+		) X
+	WHERE LineTotalSumRank <=10
+END
+--Call the Stored Procedures
+EXEC dbo.OrdersReport
+--
+EXEC dbo.OrdersReport 5
+
+--Exercise 1
+CREATE PROCEDURE dbo.OrdersAboveThreshold (@Threshold MONEY, @StartYear INT, @EndYear INT)
+AS
+BEGIN
+	SELECT
+		A.SalesOrderID,
+		A.OrderDate,
+		A.TotalDue
+	FROM AdventureWorks2019.Sales.SalesOrderHeader A
+		JOIN AdventureWorks2019.dbo.Calender B
+			ON A.OrderDate = B.DateValue
+	WHERE A.TotalDue >= @Threshold
+		AND B.YearNumber BETWEEN @StartYear AND @EndYear
+END
+
+EXEC dbo.OrdersAboveThreshold 10000,2011,2013
+
+-- IF STATEMENTS
+ DECLARE @MyInput INT
+ SET @MyInput = 1
+ IF @MyInput >1 
+	BEGIN
+		SELECT 'Hello World'
+	END
+ELSE
+BEGIN
+		SELECT 'Farewell For Now!'
+END
+
+
+EXEC dbo.OrdersReport 15, 2
+
+EXEC [dbo].[OrdersAboveThreshold] 10000, 2011, 2013 ,2
+
+--Multiple IF statements Exercise 
+EXEC [dbo].[OrdersAboveThreshold] 10000, 2011, 2013 ,3
+
+--Dynamic SQL
+SELECT TOP 100 * FROM AdventureWorks2019.Production.Product
+
+DECLARE @DynamicSQL VARCHAR(MAX)
+
+SET @DynamicSQL = 'SELECT TOP 100 * FROM AdventureWorks2019.Production.Product'
+
+EXEC(@DynamicSQL)
+--
+DECLARE @TOPN INT =10
+DECLARE @AggFunction VARCHAR(50) = 'AVG'
+DECLARE @DynamicSQL VARCHAR(MAX)
+
+SET @DynamicSQL = 'SELECT *
+		FROM (
+			SELECT	
+				ProductName = B.Name,
+				LineTotalSum ='
+SET @DynamicSQL = @DynamicSQL + @AggFunction
+--HERE
+	SELECT *
+		FROM (
+			SELECT	
+				ProductName = B.Name,
+				LineTotalSum = SUM(A.LineTotal),
+				LineTotalSumRank = DENSE_RANK() OVER (ORDER BY SUM(A.LineTotal) DESC)
+			FROM AdventureWorks2019.Sales.SalesOrderDetail A
+				JOIN AdventureWorks2019.Production.Product B
+					ON A.ProductID = B.ProductID
+			GROUP BY 
+				B.Name
+			) X
+		WHERE LineTotalSumRank <=10
+--
+
+DECLARE @TOPN INT =10 --Can be changed based on User Input
+DECLARE @AggFunction VARCHAR(50) = 'MAX' --Can be changed to any AGG function
+DECLARE @DynamicSQL VARCHAR(MAX)
+
+SET @DynamicSQL = 'SELECT *
+		FROM (
+			SELECT	
+				ProductName = B.Name,
+				LineTotalSum = '
+
+SET @DynamicSQL = @DynamicSQL + @AggFunction
+
+SET @DynamicSQL = @DynamicSQL + '(A.LineTotal),
+				LineTotalSumRank = DENSE_RANK() OVER (ORDER BY '
+
+SET @DynamicSQL = @DynamicSQL + @AggFunction
+
+SET @DynamicSQL = @DynamicSQL +  '(A.LineTotal) DESC)
+			FROM AdventureWorks2019.Sales.SalesOrderDetail A
+				JOIN AdventureWorks2019.Production.Product B
+					ON A.ProductID = B.ProductID
+			GROUP BY 
+				B.Name
+			) X
+		WHERE LineTotalSumRank <= '
+
+SET @DynamicSQL = @DynamicSQL + CAST(@TOPN AS VARCHAR)
+
+EXEC (@DynamicSQL)
+
+--Created into Stored Procedure
+
+CREATE PROCEDURE dbo.DynamicTopN(@TOPN INT, @AGGFunction VARCHAR(50))
+
+AS
+
+BEGIN
+
+	DECLARE @DynamicSQL VARCHAR(MAX)
+
+	SET @DynamicSQL = 'SELECT *
+			FROM (
+				SELECT	
+					ProductName = B.Name,
+					LineTotalSum = '
+
+	SET @DynamicSQL = @DynamicSQL + @AggFunction
+
+	SET @DynamicSQL = @DynamicSQL + '(A.LineTotal),
+					LineTotalSumRank = DENSE_RANK() OVER (ORDER BY '
+
+	SET @DynamicSQL = @DynamicSQL + @AggFunction
+
+	SET @DynamicSQL = @DynamicSQL +  '(A.LineTotal) DESC)
+				FROM AdventureWorks2019.Sales.SalesOrderDetail A
+					JOIN AdventureWorks2019.Production.Product B
+						ON A.ProductID = B.ProductID
+				GROUP BY 
+					B.Name
+				) X
+			WHERE LineTotalSumRank <= '
+
+	SET @DynamicSQL = @DynamicSQL + CAST(@TOPN AS VARCHAR)
+
+	EXEC (@DynamicSQL)
+
+END
+
+--Call the Stored Procedure with User Input 
+EXEC dbo.DynamicTopN 20, 'MIN'
+
+--Exercise 
+--
+CREATE PROCEDURE dbo.NameSearch(@NameToSearch VARCHAR(50),@SearchPattern VARCHAR(50))
+
+AS
+
+BEGIN 
+
+	DECLARE @DynamicSQL VARCHAR(MAX)
+	DECLARE @NameColumn VARCHAR(100)
+
+	IF LOWER(@NameToSearch) = 'First'
+		SET @NameColumn ='FirstName'
+
+	IF LOWER(@NameToSearch) = 'Middle'
+		SET @NameColumn ='MiddleName'
+
+	IF LOWER(@NameToSearch) = 'Last'
+		SET @NameColumn ='LastName'
+
+	SET @DynamicSQL =
+		'SELECT *
+		FROM AdventureWorks2019.Person.Person
+		WHERE '
+
+		SET @DynamicSQL = @DynamicSQL + @NameColumn
+
+		SET @DynamicSQL = @DynamicSQL + ' LIKE ' + '''' + '%' + @SearchPattern + '%' + ''''
+
+		EXEC (@DynamicSQL)
+
+END 
+	
+EXEC dbo.NameSearch first,ken
+
+---
+
+ALTER PROCEDURE dbo.NameSearch(@NameToSearch VARCHAR(100),@SearchPattern VARCHAR(100), @MatchType INT)
+
+AS
+
+BEGIN
+	DECLARE @NameColumn VARCHAR(100)
+	DECLARE @DynamicWhere VARCHAR(MAX)
+	DECLARE @DynamicSQL VARCHAR(MAX)
+
+	IF LOWER(@NameToSearch) = 'First'
+		SET @NameColumn = 'FirstName'
+
+	IF LOWER(@NameToSearch) = 'Middle'
+		SET @NameColumn = 'MiddleName'
+
+	IF LOWER(@NameToSearch) = 'Last'
+		SET @NameColumn = 'LastName'
+
+
+	IF @MatchType = 1
+		SET @DynamicWhere = ' = ' + '''' + @SearchPattern + ''''
+
+	IF @MatchType = 2
+		SET @DynamicWhere = ' LIKE ' + '''' + @SearchPattern + '%' + ''''
+
+	IF @MatchType = 3
+		SET @DynamicWhere = ' LIKE ' + '''' + '%' + @SearchPattern + ''''
+
+	IF @MatchType = 4
+		SET @DynamicWhere = ' LIKE ' + '''' + '%' + @SearchPattern + '%' + ''''
+
+
+	SET @DynamicSQL = 
+	'SELECT
+	*
+	FROM AdventureWorks2019.Person.Person
+	WHERE '
+
+	SET @DynamicSQL = @DynamicSQL + @NameColumn + @DynamicWhere
+
+	SELECT  @DynamicSQL
+
+	EXEC(@DynamicSQL)
+END
+
+EXEC dbo.NameSearch first,ken,1
